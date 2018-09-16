@@ -1,0 +1,304 @@
+<!-- UCLA's Graphics Example Code (Javascript and C++ translations available), by Garett Ridge for CS174a.
+index.html - The web page document containing the canvas (drawing surface), that launches your javascript files, and hides the vertex and fragment shader programs in some strings. //-->
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8" />
+    <script type="text/javascript" src="MV.js"></script>
+    <!--  Javascript "include" files.  Any code in them gets executed as part of the page loading.  //-->
+    <script type="text/javascript" src="tinywebgl-ucla.js"></script>
+    <script type="text/javascript" src="webgl-obj-loader.js"      ></script>
+    <script type="text/javascript" src="surfaces-of-revolution.js"></script>
+    <script type="text/javascript" src="example-shapes.js"></script>
+    <script type="text/javascript" src="example-displayables.js"></script>
+    <script type="text/javascript" src="example-shaders.js"></script>
+    <script type="text/javascript" src="surfaces-of-revolution.js"></script>
+    <link href="styles.css" rel="stylesheet" type="text/css" />
+    <script type="text/javascript">
+        "use strict"
+        var chosenSong = 0;
+        var main_canvas;
+
+        window.onload = function init() // ********************* OUR WHOLE PROGRAM'S ENTRY POINT *********************
+        {
+            mainMenu();
+            main_canvas = new Canvas_Manager("gl-canvas", Color(123/255, 157/255, 173/255, 1)); // Make the master canvas manager.  Set your background color here too.
+              var  g_state = main_canvas.shared_scratchpad.graphics_state;
+
+            shaders_in_use["Default"] = new Phong_or_Gouraud_Shader(g_state); // Put all our shader programs in the GPU.
+            shaders_in_use["Demo_Shader"] = new Funny_Shader(g_state);
+            shaders_in_use["Bump_Map"] = new Fake_Bump_Mapping      ( g_state );
+            // IMPORTANT: -- You have to include all your new images in here:
+            texture_filenames_to_load.push("text.png"); // Put all our texture images in the GPU.
+            texture_filenames_to_load.push("stars.jpeg");
+            texture_filenames_to_load.push("KeyImages/A1.png");
+            texture_filenames_to_load.push("KeyImages/A2.png");
+            texture_filenames_to_load.push("KeyImages/A3.png");
+            texture_filenames_to_load.push("KeyImages/S1.png");
+            texture_filenames_to_load.push("KeyImages/S2.png");
+            texture_filenames_to_load.push("KeyImages/S3.png");
+            texture_filenames_to_load.push("KeyImages/D1.png");
+            texture_filenames_to_load.push("KeyImages/D2.png");
+            texture_filenames_to_load.push("KeyImages/D3.png");
+            texture_filenames_to_load.push("KeyImages/F1.png");
+            texture_filenames_to_load.push("KeyImages/F2.png");
+            texture_filenames_to_load.push("KeyImages/F3.png");
+            texture_filenames_to_load.push("KeyImages/G1.png");
+            texture_filenames_to_load.push("KeyImages/G2.png");
+            texture_filenames_to_load.push("KeyImages/G3.png");
+            texture_filenames_to_load.push("KeyImages/H1.png");
+            texture_filenames_to_load.push("KeyImages/H2.png");
+            texture_filenames_to_load.push("KeyImages/H3.png");
+            texture_filenames_to_load.push("KeyImages/J1.png");
+            texture_filenames_to_load.push("KeyImages/J2.png");
+            texture_filenames_to_load.push("KeyImages/J3.png");
+            texture_filenames_to_load.push("KeyImages/K1.png");
+            texture_filenames_to_load.push("KeyImages/K2.png");
+            texture_filenames_to_load.push("KeyImages/K3.png");
+
+            for (var i = 0; i < texture_filenames_to_load.length; i++) textures_in_use[texture_filenames_to_load[i]] = (new Texture(texture_filenames_to_load[i], false));
+
+            main_canvas.register_display_object(new Debug_Screen(main_canvas)); // We instantiate some of our custom "Animation" subclasses and register these displayable
+            main_canvas.register_display_object(new Example_Animation(main_canvas)); // objects to their master "Canvas_Manager" object -- which OpenGL calls upon every time a
+            main_canvas.register_display_object(new Example_Camera(main_canvas)); // draw / keyboard / mouse event happens.
+
+            main_canvas.render();
+        }
+        window.requestAnimFrame = (function() // Use the correct browser's version of requestAnimationFrame() when queue-ing up re-display events.
+            {
+                return window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || window.oRequestAnimationFrame || window.msRequestAnimationFrame ||
+                    function(callback, element) {
+                        window.setTimeout(callback, 1000 / 60);
+                    };
+            })();
+
+        function mainMenu() {
+            //make main menu
+            window.state = "menu";
+            var play = document.getElementById("play-btn");
+            var menu = document.getElementById("menu");
+            var mary = document.getElementById("mary-btn");
+            var ode = document.getElementById("ode-btn");
+            var practice = document.getElementById("practice-btn");
+            var free = document.getElementById("free-btn");
+            var instructions = document.getElementById("instruction-btn");
+            var welcome = document.getElementById("welcome");
+            var myCanvas = document.getElementById("gl-canvas");
+
+            play.onclick = function(e) {
+              chosenSong = 0;
+                this.state = "play"
+                welcome.style.cssText = "display: none";
+                menu.style.cssText = "display: block";
+                myCanvas.style.cssText = "display: block";
+                startGame();
+            }
+            mary.onclick = function(e) {
+                chosenSong = 1;
+                this.state = "play"
+                startGame();
+            }
+            ode.onclick = function(e) {
+                chosenSong = 2;
+                this.state = "play"
+                startGame();
+            }
+            practice.onclick = function(e) {
+                chosenSong = 3;
+                this.state = "play"
+                startGame();
+            }
+            free.onclick = function(e) {
+                chosenSong = 0;
+                this.state = "play"
+                startGame();
+            }
+            instructions.onclick = function(e) {
+                chosenSong = 0;
+                this.state = "play"
+                window.open("readme.html");
+                startGame();
+            }
+        }
+
+        function startGame() {
+            updateSong();
+            changeOctave(1);
+        }
+
+        function updateSong() {
+          songTime = 0; //used as a timer
+          currentSongX = [];
+          currentSongY = [];
+
+          if (chosenSong == 1) { // Mary had a little lamb
+
+            currentSongX = [5,4,3,4,5,5,5,4,4,4,5,7,7,5,4,3,4,5,5,5,4,4,5,4,3];
+            for (var i = 0; i < currentSongX.length; i++) {
+              currentSongY.push(70+(i*3));
+            }
+          }
+          else if (chosenSong == 2) { // Ode to joy
+
+            currentSongX = [2,2,3,4,4,3,2,1,0,0,1,2,2,1,1,
+                             2,2,3,4,4,3,2,1,0,0,1,2,1,0,0];
+            for (var i = 0; i < currentSongX.length; i++) {
+              currentSongY.push(70+(i*3));
+            }
+          }
+          else if (chosenSong == 3) { // Random notes & practice
+            for (var i = 0; i < 100; i++) {
+              currentSongX.push(getRandomInt());
+              currentSongY.push(70+(i*6));
+            }
+          }
+        }
+    </script>
+
+</head>
+
+<body>
+    <div id="welcome">
+        <img class="logo"src="pianoLogo.png" alt="Piano Hero" height="300" width="600">
+        <button class="btn-welcome" id="play-btn">Play Now!</button>
+    </div>
+
+
+    <canvas id="gl-canvas" width="800" height="600"></canvas>
+
+    <div id="menu">
+      <img class="logo"src="pianoLogo.png" alt="Piano Hero" height="120" width="240">
+      <button type="button" class="btn" id="mary-btn">Mary had a Little Lamb</button>
+      <button type="button" class="btn" id="ode-btn">Ode to Joy</button>
+      <button type="button" class="btn" id="practice-btn">Practice</button>
+      <button type="button" class="btn" id="free-btn">Free Play</button>
+      <button type="button" class="btn" id="instruction-btn">Instructions</button>
+    </div>
+
+    <!--Below are the different audio files to be played -->
+    <!-- 3rd Octave -->
+    <div style="display: none">
+        <audio id="c3" controls>
+      <source src="../PianoSounds_WAV/c3.wav" type="audio/wav" />
+      </audio>
+        <audio id="c-3" controls>
+        <source src="../PianoSounds_WAV/c-3.wav" type="audio/wav" />
+        </audio>
+        <audio id="d3" controls>
+          <source src="../PianoSounds_WAV/d3.wav" type="audio/wav" />
+          </audio>
+        <audio id="d-3" controls>
+            <source src="../PianoSounds_WAV/d-3.wav" type="audio/wav">
+            </audio>
+        <audio id="e3" controls>
+              <source src="../PianoSounds_WAV/e3.wav" type="audio/wav">
+              </audio>
+        <audio id="f3" controls>
+                <source src="../PianoSounds_WAV/f3.wav" type="audio/wav">
+                </audio>
+        <audio id="f-3" controls>
+                  <source src="../PianoSounds_WAV/f-3.wav" type="audio/wav">
+                  </audio>
+        <audio id="g3" controls>
+                    <source src="../PianoSounds_WAV/g3.wav" type="audio/wav">
+                    </audio>
+        <audio id="g-3" controls>
+                      <source src="../PianoSounds_WAV/g-3.wav" type="audio/wav">
+                      </audio>
+        <audio id="a3" controls>
+                        <source src="../PianoSounds_WAV/a3.wav" type="audio/wav">
+                        </audio>
+        <audio id="a-3" controls>
+                          <source src="../PianoSounds_WAV/a-3.wav" type="audio/wav">
+                          </audio>
+        <audio id="b3" controls>
+                            <source src="../PianoSounds_WAV/b3.wav" type="audio/wav">
+                            </audio>
+
+        <!-- 4th Octave -->
+        <br>
+
+        <audio id="c4" controls>
+                              <source src="../PianoSounds_WAV/c4.wav" type="audio/wav">
+                              </audio>
+        <audio id="c-4" controls>
+                                <source src="../PianoSounds_WAV/c-4.wav" type="audio/wav">
+                                </audio>
+        <audio id="d4" controls>
+                                  <source src="../PianoSounds_WAV/d4.wav" type="audio/wav">
+                                  </audio>
+        <audio id="d-4" controls>
+                                    <source src="../PianoSounds_WAV/d-4.wav" type="audio/wav">
+                                    </audio>
+        <audio id="e4" controls>
+                                      <source src="../PianoSounds_WAV/e4.wav" type="audio/wav">
+                                      </audio>
+        <audio id="f4" controls>
+                                        <source src="../PianoSounds_WAV/f4.wav" type="audio/wav">
+                                        </audio>
+        <audio id="f-4" controls>
+                                          <source src="../PianoSounds_WAV/f-4.wav" type="audio/wav">
+                                          </audio>
+        <audio id="g4" controls>
+                                            <source src="../PianoSounds_WAV/g4.wav" type="audio/wav">
+                                            </audio>
+        <audio id="g-4" controls>
+                                              <source src="../PianoSounds_WAV/g-4.wav" type="audio/wav">
+                                              </audio>
+        <audio id="a4" controls>
+                                                <source src="../PianoSounds_WAV/a4.wav" type="audio/wav">
+                                                </audio>
+        <audio id="a-4" controls>
+                                                  <source src="../PianoSounds_WAV/a-4.wav" type="audio/wav">
+                                                  </audio>
+        <audio id="b4" controls>
+                                                    <source src="../PianoSounds_WAV/b4.wav" type="audio/wav">
+                                                    </audio>
+
+        <!-- 5th Octave -->
+        <audio id="c5" controls>
+                                                      <source src="../PianoSounds_WAV/c5.wav" type="audio/wav">
+                                                      </audio>
+        <audio id="c-5" controls>
+                                                        <source src="../PianoSounds_WAV/c-5.wav" type="audio/wav">
+                                                        </audio>
+        <audio id="d5" controls>
+                                                          <source src="../PianoSounds_WAV/d5.wav" type="audio/wav">
+                                                          </audio>
+        <audio id="d-5" controls>
+                                                            <source src="../PianoSounds_WAV/d-5.wav" type="audio/wav">
+                                                            </audio>
+        <audio id="e5" controls>
+                                                              <source src="../PianoSounds_WAV/e5.wav" type="audio/wav">
+                                                              </audio>
+        <audio id="f5" controls>
+                                                                <source src="../PianoSounds_WAV/f5.wav" type="audio/wav">
+                                                                </audio>
+        <audio id="f-5" controls>
+                                                                  <source src="../PianoSounds_WAV/f-5.wav" type="audio/wav">
+                                                                  </audio>
+        <audio id="g5" controls>
+                                                                    <source src="../PianoSounds_WAV/g5.wav" type="audio/wav">
+                                                                    </audio>
+        <audio id="g-5" controls>
+                                                                      <source src="../PianoSounds_WAV/g-5.wav" type="audio/wav">
+                                                                      </audio>
+        <audio id="a5" controls>
+                                                                        <source src="../PianoSounds_WAV/a5.wav" type="audio/wav">
+                                                                        </audio>
+        <audio id="a-5" controls>
+                                                                          <source src="../PianoSounds_WAV/a-5.wav" type="audio/wav">
+                                                                          </audio>
+        <audio id="b5" controls>
+                                                                            <source src="../PianoSounds_WAV/b5.wav" type="audio/wav">
+                                                                            </audio>
+        <audio id="c6" controls>
+                                                                              <source src="../PianoSounds_WAV/c6.wav" type="audio/wav">
+                                                                              </audio>
+    </div>
+
+
+</body>
+
+</html>
